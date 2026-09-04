@@ -46,7 +46,10 @@ DMA_HandleTypeDef handle_GPDMA1_Channel0;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+volatile uint32_t src_buffer_node1[64];
+DMA_NodeTypeDef Node1;
+DMA_QListTypeDef Queue;
+extern DMA_QListTypeDef Queue;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,6 +58,8 @@ static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
+void frame_stream_with_trigger();
+
 
 /* USER CODE END PFP */
 
@@ -92,10 +97,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_GPDMA1_Init();
+  // MX_GPDMA1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+  // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  // HAL_TIM_Base_Start(&htim2);
+  frame_stream_with_trigger();
 
   /* USER CODE END 2 */
 
@@ -207,6 +215,7 @@ static void MX_TIM2_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
@@ -226,15 +235,28 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
@@ -255,7 +277,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PC10 */
   GPIO_InitStruct.Pin = GPIO_PIN_10;
@@ -270,6 +302,119 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+/* IMPORTANT: Remove or exclude linkedlist.c/h (CubeMX generated)
+ * to avoid conflicts with this GPDMA configuration.
+ */
+ void frame_stream_with_trigger()
+{
+    /**
+     * This function generates a continuous stream of pulses on PA8,
+     * but now the DMA transfer is **synchronized to a hardware trigger** (TIM2 PWM).
+     *
+     * Compared to previous examples:
+     * - The DMA is still in circular mode, so the pulse sequence repeats.
+     * - The node is configured to wait for a **hardware trigger** (TIM2_TRGO, rising edge) before each transfer.
+     * - This means each pulse (SET then RESET) is generated in sync with the timer, not as fast as possible.
+     * - Useful for generating precise, timer-controlled pulse trains.
+     */
+
+    /******* Variables: Prepare the pulse sequence *********/
+    // The buffer contains two values:
+    // - First value: SET PA8 (0x00000100)
+    // - Second value: RESET PA8 (0x01000000)
+    // src_buffer_node1[0]=0x00000100;//SET PA8
+    // src_buffer_node1[1]=0x01000000;//RESET PA8
+
+    src_buffer_node1[0]=0x00008000;
+    src_buffer_node1[1]=0x80000000;
+
+    /******* DMA Configuration *********/
+    __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+    handle_GPDMA1_Channel0.Instance = GPDMA1_Channel0;
+    handle_GPDMA1_Channel0.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+    handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+    handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
+    handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+
+    // *** Circular mode: the sequence will repeat automatically ***
+    handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;//normal mode instead of circular mode
+    if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel0) != HAL_OK)
+    {
+    Error_Handler();
+    }
+    if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel0, DMA_CHANNEL_NPRIV) != HAL_OK)
+    {
+    Error_Handler();
+    }
+
+    /******* Node Configuration:Describe the triggered pulse sequence *********/
+    HAL_StatusTypeDef ret = HAL_OK;
+    DMA_NodeConfTypeDef pNodeConfig;
+
+    pNodeConfig.NodeType = DMA_GPDMA_LINEAR_NODE;
+    pNodeConfig.Init.Request = DMA_REQUEST_SW;
+    pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
+    pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
+    pNodeConfig.Init.SrcInc = DMA_SINC_INCREMENTED;
+    pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
+    pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
+    pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
+    pNodeConfig.Init.SrcBurstLength = 1;
+    pNodeConfig.Init.DestBurstLength = 1;
+    pNodeConfig.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
+    pNodeConfig.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+    pNodeConfig.Init.Mode = DMA_NORMAL;
+    /*	pNodeConfig.RepeatBlockConfig.RepeatCount = 1;
+    pNodeConfig.RepeatBlockConfig.SrcAddrOffset = 0;
+    pNodeConfig.RepeatBlockConfig.DestAddrOffset = 0;
+    pNodeConfig.RepeatBlockConfig.BlkSrcAddrOffset = 0;
+    pNodeConfig.RepeatBlockConfig.BlkDestAddrOffset = 0;*/
+
+/****** 1- Trigger Configuration: synchronize with timer ******/
+pNodeConfig.TriggerConfig.TriggerMode = DMA_TRIGM_SINGLE_BURST_TRANSFER ;// Wait for trigger for each burst
+pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_RISING;// On rising edge
+pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM2_TRGO;// Use TIM2 TRGO as trigger
+
+    pNodeConfig.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
+    pNodeConfig.DataHandlingConfig.DataAlignment = DMA_DATA_RIGHTALIGN_ZEROPADDED;
+    pNodeConfig.SrcAddress = (uint32_t)src_buffer_node1;
+    pNodeConfig.DstAddress = (uint32_t)&GPIOA->BSRR; // Will SET then RESET PA8
+    pNodeConfig.DataSize = 2*4U; //// 2 words: SET and RESET
+
+    // Build and insert the node into the queue
+    ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node1);
+    ret |= HAL_DMAEx_List_InsertNode_Tail(&Queue, &Node1);
+
+    // Set the queue to circular mode so it loops forever
+    ret |= HAL_DMAEx_List_SetCircularMode(&Queue);
+
+
+    /******* Link the queue to the DMA channel *********/
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &Queue)!=HAL_OK)
+    {
+    Error_Handler();
+    }
+
+
+/******* 2- Start the timer (PWM) to generate the trigger events *********/
+HAL_TIM_Base_Start(&htim2);
+
+
+
+    /******* Start the DMA transfer *********/
+    // Toggle PB10 as a marker for oscilloscope/debug
+    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
+    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
+
+    // Start the DMA: will generate a pulse (SET then RESET) on PA8
+    // synchronized with each rising edge of TIM2_TRGO
+    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
+    {
+    Error_Handler();
+    }
+}
+
 
 /* USER CODE END 4 */
 
