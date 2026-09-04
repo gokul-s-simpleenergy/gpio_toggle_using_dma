@@ -50,6 +50,7 @@ volatile uint32_t src_buffer_node1[64];
 DMA_NodeTypeDef Node1;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
+uint8_t x;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -259,6 +260,10 @@ static void MX_TIM2_Init(void)
   }
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
   if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OnePulse_Init(&htim2, TIM_OPMODE_SINGLE) != HAL_OK)
   {
     Error_Handler();
   }
