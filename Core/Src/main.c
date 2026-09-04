@@ -97,13 +97,41 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  // MX_GPDMA1_Init();
+  MX_GPDMA1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   // HAL_TIM_Base_Start(&htim2);
-  frame_stream_with_trigger();
+  
+    src_buffer_node1[0]=0x00008000;
+    src_buffer_node1[1]=0x80000000;
+  // frame_stream_with_trigger();
+    MX_YourQueueName_Config();
+
+    /******* Link the queue to the DMA channel *********/
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &YourQueueName)!=HAL_OK)
+    {
+    Error_Handler();
+    }
+
+
+/******* 2- Start the timer (PWM) to generate the trigger events *********/
+HAL_TIM_Base_Start(&htim2);
+
+
+
+    /******* Start the DMA transfer *********/
+    // Toggle PB10 as a marker for oscilloscope/debug
+    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
+    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
+
+    // Start the DMA: will generate a pulse (SET then RESET) on PA8
+    // synchronized with each rising edge of TIM2_TRGO
+    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
+    {
+    Error_Handler();
+    }
 
   /* USER CODE END 2 */
 
@@ -186,7 +214,7 @@ static void MX_GPDMA1_Init(void)
   handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
   handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
   handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
-  handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_NORMAL;
+  handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
   if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel0) != HAL_OK)
   {
     Error_Handler();
@@ -215,7 +243,6 @@ static void MX_TIM2_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
@@ -235,28 +262,15 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 500;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
 
 }
 

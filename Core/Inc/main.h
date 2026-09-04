@@ -36,7 +36,8 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+extern DMA_QListTypeDef YourQueueName;
+extern volatile uint32_t src_buffer_node1[64];
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -48,8 +49,6 @@ extern "C" {
 /* USER CODE BEGIN EM */
 
 /* USER CODE END EM */
-
-void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);

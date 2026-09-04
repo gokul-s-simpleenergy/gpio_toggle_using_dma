@@ -1,4 +1,4 @@
-// /* USER CODE BEGIN Header */
+/* USER CODE BEGIN Header */
 // /**
 //   ******************************************************************************
 //   * File Name          : linked_list.h
@@ -16,26 +16,26 @@
 //   *
 //   ******************************************************************************
 //   */
-// /* USER CODE END Header */
+/* USER CODE END Header */
 
-// /* Define to prevent recursive inclusion -------------------------------------*/
-// #ifndef LINKED_LIST_H
-// #define LINKED_LIST_H
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef LINKED_LIST_H
+#define LINKED_LIST_H
 
-// #ifdef __cplusplus
-//  extern "C" {
-// #endif
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
-// /* Includes ------------------------------------------------------------------*/
-// #include "main.h"
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
 
-// /* Exported types ------------------------------------------------------------*/
-// /* Exported constants --------------------------------------------------------*/
-// HAL_StatusTypeDef MX_YourQueueName_Config(void);
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+HAL_StatusTypeDef MX_YourQueueName_Config(void);
 
-// #ifdef __cplusplus
-// }
-// #endif
+#ifdef __cplusplus
+}
+#endif
 
-// #endif /* LINKED_LIST_H */
+#endif /* LINKED_LIST_H */
 
