@@ -31,7 +31,8 @@
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
-HAL_StatusTypeDef MX_YourQueueName_Config(void);
+HAL_StatusTypeDef MX_YourQueueName1_Config(void);
+HAL_StatusTypeDef MX_YourQueueName0_Config(void);
 
 #ifdef __cplusplus
 }

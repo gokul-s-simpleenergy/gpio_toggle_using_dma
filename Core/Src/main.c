@@ -41,13 +41,15 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DMA_HandleTypeDef handle_GPDMA1_Channel1;
 DMA_HandleTypeDef handle_GPDMA1_Channel0;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 volatile uint32_t src_buffer_node1[64];
-DMA_NodeTypeDef Node1;
+DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
 uint8_t x;
@@ -58,6 +60,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 void frame_stream_with_trigger();
 
@@ -100,6 +103,7 @@ int main(void)
   MX_GPIO_Init();
   MX_GPDMA1_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -108,10 +112,16 @@ int main(void)
     src_buffer_node1[0]=0x00008000;
     src_buffer_node1[1]=0x80000000;
   // frame_stream_with_trigger();
-    MX_YourQueueName_Config();
+    MX_YourQueueName0_Config();
+    MX_YourQueueName1_Config();
 
     /******* Link the queue to the DMA channel *********/
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &YourQueueName)!=HAL_OK)
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &YourQueueName0)!=HAL_OK)
+    {
+    Error_Handler();
+    }
+
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &YourQueueName1)!=HAL_OK)
     {
     Error_Handler();
     }
@@ -133,6 +143,10 @@ HAL_TIM_Base_Start(&htim2);
     {
     Error_Handler();
     }
+    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
+    {
+    Error_Handler();
+    }
 
   /* USER CODE END 2 */
 
@@ -140,6 +154,22 @@ HAL_TIM_Base_Start(&htim2);
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (x == 1)
+    {
+      x = 0;
+      /* HAL_TIM_Base_Start leaves htim2.State as HAL_TIM_STATE_BUSY.
+       * Calling HAL_TIM_Base_Stop resets state back to HAL_TIM_STATE_READY
+       * so that HAL_TIM_Base_Start can trigger the next pulse successfully.
+       */
+      // HAL_TIM_Base_Stop(&htim2);
+      // HAL_TIM_Base_Start(&htim2);
+       TIM3->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
+      /* Call on command */
+      // HAL_DMAEx_List_Stop(&handle_GPDMA1_Channel1);  // Resets HAL state to READY & re-arms Head
+      // HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1); // Starts fresh from Head node
+//      HAL_TIM_Base_Start(&htim3);
+    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -210,6 +240,20 @@ static void MX_GPDMA1_Init(void)
   /* USER CODE BEGIN GPDMA1_Init 1 */
 
   /* USER CODE END GPDMA1_Init 1 */
+  handle_GPDMA1_Channel1.Instance = GPDMA1_Channel1;
+  handle_GPDMA1_Channel1.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+  handle_GPDMA1_Channel1.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+  handle_GPDMA1_Channel1.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
+  handle_GPDMA1_Channel1.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel1.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel1, DMA_CHANNEL_NPRIV) != HAL_OK)
+  {
+    Error_Handler();
+  }
   handle_GPDMA1_Channel0.Instance = GPDMA1_Channel0;
   handle_GPDMA1_Channel0.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
   handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
@@ -280,6 +324,55 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 3;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 999;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OnePulse_Init(&htim3, TIM_OPMODE_SINGLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -299,7 +392,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA15 */
   GPIO_InitStruct.Pin = GPIO_PIN_15;
@@ -308,8 +401,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PC10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  /*Configure GPIO pins : PC10 PC11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -402,8 +495,8 @@ pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM2_TRGO;// Use TIM
     pNodeConfig.DataSize = 2*4U; //// 2 words: SET and RESET
 
     // Build and insert the node into the queue
-    ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node1);
-    ret |= HAL_DMAEx_List_InsertNode_Tail(&Queue, &Node1);
+    ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node12);
+    ret |= HAL_DMAEx_List_InsertNode_Tail(&Queue, &Node12);
 
     // Set the queue to circular mode so it loops forever
     ret |= HAL_DMAEx_List_SetCircularMode(&Queue);

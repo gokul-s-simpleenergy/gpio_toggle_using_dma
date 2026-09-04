@@ -25,8 +25,11 @@
 
 /* USER CODE END Includes */
 
-DMA_NodeTypeDef YourNodeName;
-DMA_QListTypeDef YourQueueName;
+DMA_NodeTypeDef YourNodeName0;
+DMA_QListTypeDef YourQueueName0;
+DMA_NodeTypeDef Node1;
+DMA_QListTypeDef YourQueueName1;
+DMA_NodeTypeDef Node2;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -35,6 +38,9 @@ DMA_QListTypeDef YourQueueName;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+// uint32_t src_buffer_gpio_control = 0x8000000; 
+uint32_t src_buffer_gpio_control = 0x800; 
+uint32_t src_buffer_timer_ctrl = 0x89;
 
 /* USER CODE END PD */
 
@@ -44,11 +50,68 @@ DMA_QListTypeDef YourQueueName;
 /* USER CODE END PM */
 
 /**
-  * @brief  DMA Linked-list YourQueueName configuration
+  * @brief  DMA Linked-list YourQueueName1 configuration
   * @param  None
   * @retval None
   */
-HAL_StatusTypeDef MX_YourQueueName_Config(void)
+HAL_StatusTypeDef MX_YourQueueName1_Config(void)
+{
+  HAL_StatusTypeDef ret = HAL_OK;
+  /* DMA node configuration declaration */
+  DMA_NodeConfTypeDef pNodeConfig;
+
+  /* Set node configuration ################################################*/
+  pNodeConfig.NodeType = DMA_GPDMA_LINEAR_NODE;
+  pNodeConfig.Init.Request = DMA_REQUEST_SW;
+  pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
+  pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
+  pNodeConfig.Init.SrcInc = DMA_SINC_FIXED;
+  pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
+  pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
+  pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
+  pNodeConfig.Init.SrcBurstLength = 1;
+  pNodeConfig.Init.DestBurstLength = 1;
+  pNodeConfig.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
+  pNodeConfig.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+  pNodeConfig.TriggerConfig.TriggerMode = DMA_TRIGM_SINGLE_BURST_TRANSFER ;
+  pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_RISING;
+  pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM3_TRGO;
+  pNodeConfig.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
+  pNodeConfig.DataHandlingConfig.DataAlignment = DMA_DATA_RIGHTALIGN_ZEROPADDED;
+  pNodeConfig.SrcAddress = &src_buffer_gpio_control;
+  pNodeConfig.DstAddress = (uint32_t)&GPIOC->BSRR;
+  pNodeConfig.DataSize = 4;
+
+  /* Build Node1 Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node1);
+
+  /* Insert Node1 to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&YourQueueName1, &Node1);
+
+  /* Set node configuration ################################################*/
+  pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_BYTE;
+  pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_BYTE;
+  pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_MASKED;
+  pNodeConfig.SrcAddress = &src_buffer_timer_ctrl;
+  pNodeConfig.DstAddress = (uint32_t)&TIM2->CR1;
+
+  /* Build Node2 Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node2);
+
+  /* Insert Node2 to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&YourQueueName1, &Node2);
+
+  ret |= HAL_DMAEx_List_SetCircularModeConfig(&YourQueueName1, &Node1);
+
+   return ret;
+}
+
+/**
+  * @brief  DMA Linked-list YourQueueName0 configuration
+  * @param  None
+  * @retval None
+  */
+HAL_StatusTypeDef MX_YourQueueName0_Config(void)
 {
   HAL_StatusTypeDef ret = HAL_OK;
   /* DMA node configuration declaration */
@@ -76,13 +139,13 @@ HAL_StatusTypeDef MX_YourQueueName_Config(void)
   pNodeConfig.DstAddress = (uint32_t)&GPIOA->BSRR;
   pNodeConfig.DataSize = 2*4;
 
-  /* Build YourNodeName Node */
-  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &YourNodeName);
+  /* Build YourNodeName0 Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &YourNodeName0);
 
-  /* Insert YourNodeName to Queue */
-  ret |= HAL_DMAEx_List_InsertNode_Tail(&YourQueueName, &YourNodeName);
+  /* Insert YourNodeName0 to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&YourQueueName0, &YourNodeName0);
 
-  ret |= HAL_DMAEx_List_SetCircularMode(&YourQueueName);
+  ret |= HAL_DMAEx_List_SetCircularMode(&YourQueueName0);
 
    return ret;
 }
