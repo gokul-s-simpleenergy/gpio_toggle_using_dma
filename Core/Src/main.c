@@ -41,11 +41,13 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DMA_HandleTypeDef handle_GPDMA1_Channel2;
 DMA_HandleTypeDef handle_GPDMA1_Channel1;
 DMA_HandleTypeDef handle_GPDMA1_Channel0;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 volatile uint32_t src_buffer_node1[64];
@@ -61,6 +63,7 @@ static void MX_GPIO_Init(void);
 static void MX_GPDMA1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 void frame_stream_with_trigger();
 
@@ -104,6 +107,7 @@ int main(void)
   MX_GPDMA1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -111,24 +115,31 @@ int main(void)
   
     src_buffer_node1[0]=0x00008000;
     src_buffer_node1[1]=0x80000000;
-  // frame_stream_with_trigger();
-    MX_YourQueueName0_Config();
-    MX_YourQueueName1_Config();
+  
+    MX_QueueExecution0_Config();
+    MX_QueueEntry1_Config();
+    MX_QueueExit2_Config();
 
     /******* Link the queue to the DMA channel *********/
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &YourQueueName0)!=HAL_OK)
+
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
+        {
+        Error_Handler();
+        }
+
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
     {
     Error_Handler();
     }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &YourQueueName1)!=HAL_OK)
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
     {
     Error_Handler();
     }
 
 
 /******* 2- Start the timer (PWM) to generate the trigger events *********/
-HAL_TIM_Base_Start(&htim2);
+// HAL_TIM_Base_Start(&htim2);
 
 
 
@@ -143,7 +154,11 @@ HAL_TIM_Base_Start(&htim2);
     {
     Error_Handler();
     }
-    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
+   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
+   {
+   Error_Handler();
+   }
+    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2)!=0)//--->SET PA8
     {
     Error_Handler();
     }
@@ -240,11 +255,25 @@ static void MX_GPDMA1_Init(void)
   /* USER CODE BEGIN GPDMA1_Init 1 */
 
   /* USER CODE END GPDMA1_Init 1 */
+  handle_GPDMA1_Channel2.Instance = GPDMA1_Channel2;
+  handle_GPDMA1_Channel2.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+  handle_GPDMA1_Channel2.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+  handle_GPDMA1_Channel2.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
+  handle_GPDMA1_Channel2.InitLinkedList.TransferEventMode = DMA_TCEM_EACH_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel2.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel2, DMA_CHANNEL_NPRIV) != HAL_OK)
+  {
+    Error_Handler();
+  }
   handle_GPDMA1_Channel1.Instance = GPDMA1_Channel1;
   handle_GPDMA1_Channel1.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
   handle_GPDMA1_Channel1.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
   handle_GPDMA1_Channel1.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
-  handle_GPDMA1_Channel1.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel1.InitLinkedList.TransferEventMode = DMA_TCEM_EACH_LL_ITEM_TRANSFER;
   handle_GPDMA1_Channel1.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
   if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel1) != HAL_OK)
   {
@@ -258,7 +287,7 @@ static void MX_GPDMA1_Init(void)
   handle_GPDMA1_Channel0.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
   handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
   handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
-  handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_EACH_LL_ITEM_TRANSFER;
   handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
   if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel0) != HAL_OK)
   {
@@ -295,7 +324,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 3;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 999;
+  htim2.Init.Period = 1999;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -344,7 +373,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 3;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 999;
+  htim3.Init.Period = 1999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -369,6 +398,55 @@ static void MX_TIM3_Init(void)
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 3;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 1999;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OnePulse_Init(&htim4, TIM_OPMODE_SINGLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
 
 }
 

@@ -36,8 +36,9 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-extern DMA_QListTypeDef YourQueueName0;
-extern DMA_QListTypeDef YourQueueName1;
+extern DMA_QListTypeDef QueueExecution0;
+extern DMA_QListTypeDef QueueEntry1;
+extern DMA_QListTypeDef QueueExit2;
 extern volatile uint32_t src_buffer_node1[64];
 /* USER CODE END ET */
 
