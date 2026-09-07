@@ -19,6 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
+#include "BQ769x2Header.h"
+#include "linked_list.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -45,6 +48,8 @@ DMA_HandleTypeDef handle_GPDMA1_Channel2;
 DMA_HandleTypeDef handle_GPDMA1_Channel1;
 DMA_HandleTypeDef handle_GPDMA1_Channel0;
 
+SPI_HandleTypeDef hspi2;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
@@ -55,6 +60,8 @@ DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
 uint8_t x;
+uint16_t Pack_Current1;
+uint16_t device_id;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,6 +71,7 @@ static void MX_GPDMA1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 void frame_stream_with_trigger();
 
@@ -108,6 +116,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -122,20 +131,20 @@ int main(void)
 
     /******* Link the queue to the DMA channel *********/
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
-        {
-        Error_Handler();
-        }
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
+    //     {
+    //     Error_Handler();
+    //     }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
-    {
-    Error_Handler();
-    }
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
+    // {
+    // Error_Handler();
+    // }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
-    {
-    Error_Handler();
-    }
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
+    // {
+    // Error_Handler();
+    // }
 
 
 /******* 2- Start the timer (PWM) to generate the trigger events *********/
@@ -150,18 +159,35 @@ int main(void)
 
     // Start the DMA: will generate a pulse (SET then RESET) on PA8
     // synchronized with each rising edge of TIM2_TRGO
-    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
-    {
-    Error_Handler();
-    }
-   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
-   {
-   Error_Handler();
-   }
-    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2)!=0)//--->SET PA8
-    {
-    Error_Handler();
-    }
+  //   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
+  //   {
+  //   Error_Handler();
+  //   }
+  //  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
+  //  {
+  //  Error_Handler();
+  //  }
+  //   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2)!=0)//--->SET PA8
+  //   {
+  //   Error_Handler();
+  //   }
+
+  // spi config
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);  // SPI_CS pin set high
+  HAL_Delay(1000);
+//  CommandSubcommands(SLEEP_DISABLE); // Sleep mode is enabled by default. For this example, Sleep is disabled to
+									   // demonstrate full-speed measurements in Normal mode. 
+
+//	HAL_Delay(1000);
+//	HAL_Delay(60000); HAL_Delay(60000); HAL_Delay(60000);
+
+//  BQ769x2_ReadSafetyStatus();
+ 
+ device_id =BQ769x2_ReadDeviceNumber();
+
+ 
+//HAL_Delay(1000);
+// Pack_Current1 = BQ769x2_ReadCurrent();
 
   /* USER CODE END 2 */
 
@@ -300,6 +326,63 @@ static void MX_GPDMA1_Init(void)
   /* USER CODE BEGIN GPDMA1_Init 2 */
 
   /* USER CODE END GPDMA1_Init 2 */
+
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  SPI_AutonomousModeConfTypeDef HAL_SPI_AutonomousMode_Cfg_Struct = {0};
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 0x7;
+  hspi2.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  hspi2.Init.NSSPolarity = SPI_NSS_POLARITY_LOW;
+  hspi2.Init.FifoThreshold = SPI_FIFO_THRESHOLD_01DATA;
+  hspi2.Init.MasterSSIdleness = SPI_MASTER_SS_IDLENESS_00CYCLE;
+  hspi2.Init.MasterInterDataIdleness = SPI_MASTER_INTERDATA_IDLENESS_00CYCLE;
+  hspi2.Init.MasterReceiverAutoSusp = SPI_MASTER_RX_AUTOSUSP_DISABLE;
+  hspi2.Init.MasterKeepIOState = SPI_MASTER_KEEP_IO_STATE_DISABLE;
+  hspi2.Init.IOSwap = SPI_IO_SWAP_DISABLE;
+  hspi2.Init.ReadyMasterManagement = SPI_RDY_MASTER_MANAGEMENT_INTERNALLY;
+  hspi2.Init.ReadyPolarity = SPI_RDY_POLARITY_HIGH;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerState = SPI_AUTO_MODE_DISABLE;
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerSelection = SPI_GRP1_GPDMA_CH0_TCF_TRG;
+  HAL_SPI_AutonomousMode_Cfg_Struct.TriggerPolarity = SPI_TRIG_POLARITY_RISING;
+  if (HAL_SPIEx_SetConfigAutonomousMode(&hspi2, &HAL_SPI_AutonomousMode_Cfg_Struct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
 
 }
 
@@ -463,14 +546,25 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : PB12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA15 */
   GPIO_InitStruct.Pin = GPIO_PIN_15;
