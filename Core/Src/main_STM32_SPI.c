@@ -85,7 +85,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define DEV_ADDR  0x10  // BQ769x2 address is 0x10 including R/W bit or 0x8 as 7-bit address
-#define CRC_Mode 0  // 0 for disabled, 1 for enabled
+#define CRC_Mode 1  // 0 for disabled, 1 for enabled
 #define MAX_BUFFER_SIZE 10
 #define R 0 // Read; Used in DirectCommands and Subcommands functions
 #define W 1 // Write; Used in DirectCommands and Subcommands functions
@@ -98,7 +98,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-// SPI_HandleTypeDef hspi1;
+// SPI_HandleTypeDef hsp2;
 
 // TIM_HandleTypeDef htim1;
 
@@ -209,6 +209,30 @@ void SPI_WriteReg(uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
   for(i=0; i<count; i++) {
 		match = 0;
 		retries = 10;
+		
+		if (CRC_Mode == 1) {
+			TX_Buffer[0] = addr;
+			TX_Buffer[1] = reg_data[i];
+			TX_Buffer[2] = CRC8(TX_Buffer, 2);
+			
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+			HAL_SPI_TransmitReceive(&hspi2, TX_Buffer, rxdata, 3, 100);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET); 
+	        
+			if ((rxdata[0] == addr) && (rxdata[1] == reg_data[i])) {
+				match = 1;
+			}
+
+			while ((match == 0) && (retries > 0)) {
+				HAL_Delay(1);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+				HAL_SPI_TransmitReceive(&hspi2, TX_Buffer, rxdata, 3, 100);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET); 
+				if ((rxdata[0] == addr) && (rxdata[1] == reg_data[i]))
+					match = 1;
+				retries --;
+			}
+		} else {
 		TX_Buffer[0] = addr;
 		TX_Buffer[1] = reg_data[i];
 		
@@ -229,6 +253,7 @@ void SPI_WriteReg(uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
 				match = 1;
 			retries --;
 		}    
+		}
     addr += 1;
   }
 }
@@ -247,6 +272,33 @@ void SPI_ReadReg(uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
   for(i=0; i<count; i++) {
 		match = 0;
 		retries = 10;
+		
+		if (CRC_Mode == 1) {
+			TX_Buffer[0] = addr;
+			TX_Buffer[1] = 0xFF;
+			TX_Buffer[2] = CRC8(TX_Buffer, 2);
+			
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+			HAL_SPI_TransmitReceive(&hspi2, TX_Buffer, rxdata, 3, 100);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET); 
+	        
+			if ((rxdata[0] == addr) && (CRC8(rxdata, 2) == rxdata[2])) {
+				match = 1;
+				reg_data[i] = rxdata[1];
+			}
+
+			while ((match == 0) && (retries > 0)) {
+				HAL_Delay(1);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+				HAL_SPI_TransmitReceive(&hspi2, TX_Buffer, rxdata, 3, 100);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET); 
+				if ((rxdata[0] == addr) && (CRC8(rxdata, 2) == rxdata[2])) {
+					match = 1;
+					reg_data[i] = rxdata[1];
+				}
+				retries --;
+			}
+		} else {
 		TX_Buffer[0] = addr;
 		TX_Buffer[1] = 0xFF;
 		
@@ -270,6 +322,7 @@ void SPI_ReadReg(uint8_t reg_addr, uint8_t *reg_data, uint8_t count) {
 			}
 			retries --;
 		}    
+		}
     addr += 1;
   }
 }
@@ -346,29 +399,29 @@ void Subcommands(uint16_t command, uint16_t data, uint8_t type)
 	if (type == R) {//read
 		SPI_WriteReg(0x3E,TX_Reg,2);
 		HAL_Delay(2000);
-		SPI_ReadReg(0x40, RX_32Byte, 32); //RX_32Byte is a global variable
+		SPI_ReadReg(0x40, RX_32Byte, 2); //RX_32Byte is a global variable
 	}
-	else if (type == W) {
-		//FET_Control, REG12_Control
-		TX_Reg[2] = data & 0xff; 
-		SPI_WriteReg(0x3E,TX_Reg,3);
-		HAL_Delay(1000);
-		TX_Buffer[0] = Checksum(TX_Reg, 3);
-		TX_Buffer[1] = 0x05; //combined length of registers address and data
-		SPI_WriteReg(0x60, TX_Buffer, 2);
-		HAL_Delay(1000); 
-	}
-	else if (type == W2){ //write data with 2 bytes
-		//CB_Active_Cells, CB_SET_LVL
-		TX_Reg[2] = data & 0xff; 
-		TX_Reg[3] = (data >> 8) & 0xff;
-		SPI_WriteReg(0x3E,TX_Reg,4);
-		HAL_Delay(1000);
-		TX_Buffer[0] = Checksum(TX_Reg, 4); 
-		TX_Buffer[1] = 0x06; //combined length of registers address and data
-		SPI_WriteReg(0x60, TX_Buffer, 2);
-		HAL_Delay(1000); 
-	}
+	// else if (type == W) {
+	// 	//FET_Control, REG12_Control
+	// 	TX_Reg[2] = data & 0xff; 
+	// 	SPI_WriteReg(0x3E,TX_Reg,3);
+	// 	HAL_Delay(1000);
+	// 	TX_Buffer[0] = Checksum(TX_Reg, 3);
+	// 	TX_Buffer[1] = 0x05; //combined length of registers address and data
+	// 	SPI_WriteReg(0x60, TX_Buffer, 2);
+	// 	HAL_Delay(1000); 
+	// }
+	// else if (type == W2){ //write data with 2 bytes
+	// 	//CB_Active_Cells, CB_SET_LVL
+	// 	TX_Reg[2] = data & 0xff; 
+	// 	TX_Reg[3] = (data >> 8) & 0xff;
+	// 	SPI_WriteReg(0x3E,TX_Reg,4);
+	// 	HAL_Delay(1000);
+	// 	TX_Buffer[0] = Checksum(TX_Reg, 4); 
+	// 	TX_Buffer[1] = 0x06; //combined length of registers address and data
+	// 	SPI_WriteReg(0x60, TX_Buffer, 2);
+	// 	HAL_Delay(1000); 
+	// }
 }
 
 void DirectCommands(uint8_t command, uint16_t data, uint8_t type)
@@ -630,106 +683,3 @@ uint16_t BQ769x2_ReadDeviceNumber(void)
 
 /* USER CODE END PFP */
 
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-/* USER CODE END 0 */
-
-/**
-  * @brief  The application entry point.
-  * @retval int
-  */
-// int main(void)
-// {
-//   /* USER CODE BEGIN 1 */
-
-//   /* USER CODE END 1 */
-
-//   /* MCU Configuration--------------------------------------------------------*/
-
-//   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-//   	HAL_Init();
-
-//   /* USER CODE BEGIN Init */
-
-//   /* USER CODE END Init */
-
-//   /* Configure the system clock */
-//   	SystemClock_Config();
-
-//   /* USER CODE BEGIN SysInit */
-
-//   /* USER CODE END SysInit */
-
-//   /* Initialize all configured peripherals */
-//   	MX_GPIO_Init();
-//   	MX_SPI1_Init();
-//   	// MX_USART2_UART_Init();
-//   	MX_TIM1_Init();
-  /* USER CODE BEGIN 2 */
-	// Start timer
-//	HAL_TIM_Base_Start(&htim1);
-//    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);  // SPI_CS pin set high
-//	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);  // RST_SHUT pin set low
-//	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);  // DFETOFF pin (BOTHOFF) set low
-//  	HAL_Delay(10000);
-//
-//	CommandSubcommands(BQ769x2_RESET);  // Resets the BQ769x2 registers
-//	HAL_Delay(60000);
-//	BQ769x2_Init();  // Configure all of the BQ769x2 register settings
-//	HAL_Delay(10000);
-//	CommandSubcommands(FET_ENABLE); // Enable the CHG and DSG FETs
-//	HAL_Delay(10000);
-//	CommandSubcommands(SLEEP_DISABLE); // Sleep mode is enabled by default. For this example, Sleep is disabled to
-									   // demonstrate full-speed measurements in Normal mode. 
-
-//	HAL_Delay(60000);
-//	HAL_Delay(60000);
-//	HAL_Delay(60000);
-//	HAL_Delay(60000);//wait to start measurements after FETs close
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-//   while (1)
-//   {
-//     /* USER CODE END WHILE */
-
-//     /* USER CODE BEGIN 3 */
-	
-//     //Reads Cell, Stack, Pack, LD Voltages, Pack Current and TS1/TS3 Temperatures in a loop
-// 	//This basic example polls the Alarm Status register to see if protections have triggered or new measurements are ready
-// 	//The ALERT pin can also be used as an interrupt to the microcontroller for fastest response time instead of polling
-// 	//In this example the LED on the microcontroller board will be turned on to indicate a protection has triggered and will 
-// 	//be turned off if the protection condition has cleared.
-
-// 		AlarmBits = BQ769x2_ReadAlarmStatus();
-// 		if (AlarmBits & 0x80) {  // Check if FULLSCAN is complete. If set, new measurements are available
-//       		BQ769x2_ReadAllVoltages();
-      		// Pack_Current = BQ769x2_ReadCurrent();
-//       		Temperature[0] = BQ769x2_ReadTemperature(TS1Temperature);
-//       		Temperature[1] = BQ769x2_ReadTemperature(TS3Temperature);
-// 			DirectCommands(AlarmStatus, 0x0080, W);  // Clear the FULLSCAN bit
-// 		}
-				
-// 		if (AlarmBits & 0xC000) {  // If Safety Status bits are showing in AlarmStatus register
-// 			BQ769x2_ReadSafetyStatus(); // Read the Safety Status registers to find which protections have triggered
-// 			if (ProtectionsTriggered & 1) {
-// 				// HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_SET);
-// 			 }// Turn on the LED to indicate Protection has triggered
-// 				DirectCommands(AlarmStatus, 0xF800, W); // Clear the Safety Status Alarm bits.
-// 			}
-// 		else
-// 		{
-// 			if (ProtectionsTriggered & 1) {
-// 				BQ769x2_ReadSafetyStatus();
-// 				if (!(ProtectionsTriggered & 1)) 
-// 				{
-// 					// HAL_GPIO_WritePin(GPIOA, LD2_Pin, GPIO_PIN_RESET);
-// 				} 
-// 			} // Turn off the LED if Safety Status has cleared which means the protection condition is no longer present
-// 		}
-// 		HAL_Delay(20000);  // repeat loop every 20 ms
-//   }
-//   /* USER CODE END 3 */
-// }
