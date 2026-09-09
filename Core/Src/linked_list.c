@@ -25,8 +25,9 @@
 
 /* USER CODE END Includes */
 
-DMA_NodeTypeDef ExecutionNode0;
+DMA_NodeTypeDef ExecutionNode1;
 DMA_QListTypeDef QueueExecution0;
+DMA_NodeTypeDef ExecutionNode2;
 DMA_NodeTypeDef EntryNode1;
 DMA_QListTypeDef QueueEntry1;
 DMA_NodeTypeDef EntryNode2;
@@ -48,6 +49,7 @@ uint32_t src_buffer_gpio_control_rising = 0x1000;
 uint32_t src_buffer_timer2_ctrl = 0x89;
 uint32_t src_buffer_timer3_ctrl = 0x89;
 uint32_t src_buffer_timer4_ctrl = 0x89;
+uint8_t rx_buffer[3];
 
 /* USER CODE END PD */
 
@@ -135,9 +137,9 @@ HAL_StatusTypeDef MX_QueueExecution0_Config(void)
 
   /* Set node configuration ################################################*/
   pNodeConfig.NodeType = DMA_GPDMA_LINEAR_NODE;
-  pNodeConfig.Init.Request = DMA_REQUEST_SW;
+  pNodeConfig.Init.Request = GPDMA1_REQUEST_SPI2_TX;
   pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
-  pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
+  pNodeConfig.Init.Direction = DMA_MEMORY_TO_PERIPH;
   pNodeConfig.Init.SrcInc = DMA_SINC_INCREMENTED;
   pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
   pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_BYTE;
@@ -155,13 +157,29 @@ HAL_StatusTypeDef MX_QueueExecution0_Config(void)
   pNodeConfig.DstAddress = (uint32_t)&SPI2->TXDR;
   pNodeConfig.DataSize = 3;
 
-  /* Build ExecutionNode0 Node */
-  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &ExecutionNode0);
+  /* Build ExecutionNode1 Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &ExecutionNode1);
 
-  /* Insert ExecutionNode0 to Queue */
-  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueExecution0, &ExecutionNode0);
+  /* Insert ExecutionNode1 to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueExecution0, &ExecutionNode1);
 
-  ret |= HAL_DMAEx_List_SetCircularMode(&QueueExecution0);
+  /* Set node configuration ################################################*/
+  pNodeConfig.Init.Request = GPDMA1_REQUEST_SPI2_RX;
+  pNodeConfig.Init.Direction = DMA_PERIPH_TO_MEMORY;
+  pNodeConfig.Init.SrcInc = DMA_SINC_FIXED;
+  pNodeConfig.Init.DestInc = DMA_DINC_INCREMENTED;
+  pNodeConfig.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+  pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_MASKED;
+  pNodeConfig.SrcAddress = (uint32_t)&SPI2->RXDR;
+  pNodeConfig.DstAddress = (uint32_t)rx_buffer;
+
+  /* Build ExecutionNode2 Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &ExecutionNode2);
+
+  /* Insert ExecutionNode2 to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueExecution0, &ExecutionNode2);
+
+  ret |= HAL_DMAEx_List_SetCircularModeConfig(&QueueExecution0, &ExecutionNode1);
 
    return ret;
 }

@@ -19,11 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
-#include "BQ769x2Header.h"
-#include "linked_list.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "BQ769x2Header.h"
+#include "linked_list.h"
 
 /* USER CODE END Includes */
 
@@ -125,8 +125,8 @@ int main(void)
     // src_buffer_node1[0]=0x00008000;
     // src_buffer_node1[1]=0x80000000;
     src_buffer_node1[0] = 0xBE;
-    src_buffer_node1[1] = 0x40;
-    src_buffer_node1[2] = 0x50;
+    src_buffer_node1[1] = 0x01;
+    src_buffer_node1[2] = 0x9E;
   
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
@@ -166,8 +166,9 @@ int main(void)
   // Continuous Register SPI Transfer Preparation
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);   // 1. Drive CS HIGH (Idle)
   MODIFY_REG(SPI2->CR2, SPI_CR2_TSIZE, 0);               // 2. TSIZE = 0 (Continuous transfer mode)
-
   __HAL_SPI_ENABLE(&hspi2);                              // 3. Enable SPI Peripheral (SPE = 1)
+  SET_BIT(SPI2->CFG1, SPI_CFG1_TXDMAEN); // Enable SPI2 TX DMA Request 
+  SET_BIT(SPI2->CFG1, SPI_CFG1_RXDMAEN); /* Enable SPI2 RX DMA Requests */
   SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
