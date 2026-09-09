@@ -55,7 +55,7 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
-volatile uint32_t src_buffer_node1[64];
+volatile uint8_t src_buffer_node1[64];
 DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
@@ -122,8 +122,11 @@ int main(void)
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   // HAL_TIM_Base_Start(&htim2);
   
-    src_buffer_node1[0]=0x00008000;
-    src_buffer_node1[1]=0x80000000;
+    // src_buffer_node1[0]=0x00008000;
+    // src_buffer_node1[1]=0x80000000;
+    src_buffer_node1[0] = 0xBE;
+    src_buffer_node1[1] = 0x40;
+    src_buffer_node1[2] = 0x50;
   
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
@@ -131,20 +134,20 @@ int main(void)
 
     /******* Link the queue to the DMA channel *********/
 
-    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
-    //     {
-    //     Error_Handler();
-    //     }
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
+        {
+        Error_Handler();
+        }
 
-    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
-    // {
-    // Error_Handler();
-    // }
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
+    {
+    Error_Handler();
+    }
 
-    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
-    // {
-    // Error_Handler();
-    // }
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
+    {
+    Error_Handler();
+    }
 
 
 /******* 2- Start the timer (PWM) to generate the trigger events *********/
@@ -159,36 +162,29 @@ int main(void)
 
     // Start the DMA: will generate a pulse (SET then RESET) on PA8
     // synchronized with each rising edge of TIM2_TRGO
-  //   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
-  //   {
-  //   Error_Handler();
-  //   }
-  //  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1)!=0)//--->SET PA8
-  //  {
-  //  Error_Handler();
-  //  }
-  //   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2)!=0)//--->SET PA8
-  //   {
-  //   Error_Handler();
-  //   }
 
-  // spi config
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);  // SPI_CS pin set high
-  HAL_Delay(1000);
-//  CommandSubcommands(SLEEP_DISABLE); // Sleep mode is enabled by default. For this example, Sleep is disabled to
-									   // demonstrate full-speed measurements in Normal mode. 
+  // Continuous Register SPI Transfer Preparation
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);   // 1. Drive CS HIGH (Idle)
+  MODIFY_REG(SPI2->CR2, SPI_CR2_TSIZE, 0);               // 2. TSIZE = 0 (Continuous transfer mode)
 
-//	HAL_Delay(1000);
-//	HAL_Delay(60000); HAL_Delay(60000); HAL_Delay(60000);
+  __HAL_SPI_ENABLE(&hspi2);                              // 3. Enable SPI Peripheral (SPE = 1)
+  SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
-//  BQ769x2_ReadSafetyStatus();
- 
- device_id =BQ769x2_ReadDeviceNumber();
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
- 
-//HAL_Delay(1000);
-// Pack_Current1 = BQ769x2_ReadCurrent();
-
+  // /* Kickstart the chained trigger loop by enabling TIM3 */
+  // TIM3->CR1 |= TIM_CR1_CEN;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -551,7 +547,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_15, GPIO_PIN_RESET);

@@ -39,7 +39,7 @@ extern "C" {
 extern DMA_QListTypeDef QueueExecution0;
 extern DMA_QListTypeDef QueueEntry1;
 extern DMA_QListTypeDef QueueExit2;
-extern volatile uint32_t src_buffer_node1[64];
+extern volatile uint8_t src_buffer_node1[64];
 extern SPI_HandleTypeDef hspi2;
 /* USER CODE END ET */
 
