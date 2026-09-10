@@ -31,6 +31,10 @@
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
+#define NUM_FRAMES 32
+
+extern uint8_t rx_buffer[NUM_FRAMES][3];
+
 HAL_StatusTypeDef MX_QueueExit2_Config(void);
 HAL_StatusTypeDef MX_QueueKillswitch_Config(void);
 HAL_StatusTypeDef MX_QueueExecution0_Config(void);

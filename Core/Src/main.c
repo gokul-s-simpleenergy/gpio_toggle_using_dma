@@ -57,11 +57,47 @@ TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim5;
 
 /* USER CODE BEGIN PV */
-uint8_t src_buffer_node1[4][3] = {{0x14, 0x00, 0x03}, {0x15, 0x00, 0x16}, {0x16, 0x00, 0x29}, {0x14, 0x00, 0x03}};
+// uint8_t src_buffer_node1[4][3] = {{0x14, 0x00, 0x03}, {0x15, 0x00, 0x16}, {0x16, 0x00, 0x29}, {0x14, 0x00, 0x03}};
+uint8_t src_buffer_node1[32][3] = {
+    {0x14, 0x00, 0x03},
+    {0x15, 0x00, 0x16},
+    {0x16, 0x00, 0x29},
+    {0x17, 0x00, 0x3C},
+    {0x18, 0x00, 0xFF},
+    {0x19, 0x00, 0xEA},
+    {0x1A, 0x00, 0xD5},
+    {0x1B, 0x00, 0xC0},
+    {0x1C, 0x00, 0xAB},
+    {0x1D, 0x00, 0xBE},
+    {0x1E, 0x00, 0x81},
+    {0x1F, 0x00, 0x94},
+    {0x20, 0x00, 0xAE},
+    {0x21, 0x00, 0xBB},
+    {0x22, 0x00, 0x84},
+    {0x23, 0x00, 0x91},
+    {0x24, 0x00, 0xFA},
+    {0x25, 0x00, 0xEF},
+    {0x26, 0x00, 0xD0},
+    {0x27, 0x00, 0xC5},
+    {0x28, 0x00, 0x06},
+    {0x29, 0x00, 0x13},
+    {0x2A, 0x00, 0x2C},
+    {0x2B, 0x00, 0x39},
+    {0x2C, 0x00, 0x52},
+    {0x2D, 0x00, 0x47},
+    {0x2E, 0x00, 0x78},
+    {0x2F, 0x00, 0x6D},
+    {0x30, 0x00, 0xF9},
+    {0x31, 0x00, 0xEC},
+    {0x32, 0x00, 0xD3},
+    {0x33, 0x00, 0xC6},
+    {0x34, 0x00, 0xAD}
+};
 DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
 uint8_t x;
+uint8_t y;
 uint16_t Pack_Current1;
 uint16_t device_id;
 /* USER CODE END PV */
@@ -218,6 +254,27 @@ int main(void)
       // HAL_DMAEx_List_Stop(&handle_GPDMA1_Channel1);  // Resets HAL state to READY & re-arms Head
       // HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1); // Starts fresh from Head node
 //      HAL_TIM_Base_Start(&htim3);
+    }
+    else if(x ==2){
+    	x=0;
+      TIM4->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
+    }
+    if(y==1){
+        if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  TIM3->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
+
+  HAL_Delay(10);
     }
 
     /* USER CODE END WHILE */
@@ -430,7 +487,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 3;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1999;
+  htim2.Init.Period = 3;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -479,7 +536,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 3;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1999;
+  htim3.Init.Period = 149;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -528,7 +585,7 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 3;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 1999;
+  htim4.Init.Period = 3;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -577,7 +634,7 @@ static void MX_TIM5_Init(void)
   htim5.Instance = TIM5;
   htim5.Init.Prescaler = 0;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 15;
+  htim5.Init.Period = 32;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
@@ -585,7 +642,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
   sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR3; // TIM4_TRGO (End of frame CS HIGH trigger)
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -769,7 +826,7 @@ HAL_TIM_Base_Start(&htim2);
 }
 
 void warp_invalidate(){
-  SCB_InvalidateDCache_by_Addr((uint32_t *)rx_buffer, sizeof(rx_buffer));
+//  SCB_InvalidateDCache_by_Addr((uint32_t *)rx_buffer, sizeof(rx_buffer));
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
