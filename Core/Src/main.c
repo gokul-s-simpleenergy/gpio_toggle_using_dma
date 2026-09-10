@@ -44,6 +44,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+DMA_HandleTypeDef handle_GPDMA1_Channel12;
 DMA_HandleTypeDef handle_GPDMA1_Channel2;
 DMA_HandleTypeDef handle_GPDMA1_Channel1;
 DMA_HandleTypeDef handle_GPDMA1_Channel0;
@@ -53,9 +54,10 @@ SPI_HandleTypeDef hspi2;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim5;
 
 /* USER CODE BEGIN PV */
-volatile uint8_t src_buffer_node1[64];
+uint8_t src_buffer_node1[4][3] = {{0x14, 0x00, 0x03}, {0x15, 0x00, 0x16}, {0x16, 0x00, 0x29}, {0x14, 0x00, 0x03}};
 DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
@@ -72,6 +74,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SPI2_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 void frame_stream_with_trigger();
 
@@ -117,6 +120,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_SPI2_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
 
   // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
@@ -124,14 +128,16 @@ int main(void)
   
     // src_buffer_node1[0]=0x00008000;
     // src_buffer_node1[1]=0x80000000;
-    src_buffer_node1[0] = 0xBE;
-    src_buffer_node1[1] = 0x01;
-    src_buffer_node1[2] = 0x9E;
-  
+    // src_buffer_node1[0] = 0xBE;
+    // src_buffer_node1[1] = 0x01;
+    // src_buffer_node1[2] = 0x9E;
+    // Global src_buffer_node1 is used
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
     MX_QueueExit2_Config();
+    // MX_QueueKillswitch_Config();
 
+    HAL_TIM_Base_Start_IT(&htim5);
     /******* Link the queue to the DMA channel *********/
 
     if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
@@ -139,7 +145,11 @@ int main(void)
         Error_Handler();
         }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueExecution0)!=HAL_OK)
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueKillswitch)!=HAL_OK)
+    // {
+    // Error_Handler();
+    // }
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel12, &QueueExecution0)!=HAL_OK)
     {
     Error_Handler();
     }
@@ -171,7 +181,7 @@ int main(void)
   SET_BIT(SPI2->CFG1, SPI_CFG1_RXDMAEN); /* Enable SPI2 RX DMA Requests */
   SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
   {
     Error_Handler();
   }
@@ -183,9 +193,11 @@ int main(void)
   {
     Error_Handler();
   }
+  // if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
 
-  // /* Kickstart the chained trigger loop by enabling TIM3 */
-  // TIM3->CR1 |= TIM_CR1_CEN;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -278,6 +290,20 @@ static void MX_GPDMA1_Init(void)
   /* USER CODE BEGIN GPDMA1_Init 1 */
 
   /* USER CODE END GPDMA1_Init 1 */
+  handle_GPDMA1_Channel12.Instance = GPDMA1_Channel12;
+  handle_GPDMA1_Channel12.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+  handle_GPDMA1_Channel12.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+  handle_GPDMA1_Channel12.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
+  handle_GPDMA1_Channel12.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel12.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel12) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel12, DMA_CHANNEL_NPRIV) != HAL_OK)
+  {
+    Error_Handler();
+  }
   handle_GPDMA1_Channel2.Instance = GPDMA1_Channel2;
   handle_GPDMA1_Channel2.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
   handle_GPDMA1_Channel2.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
@@ -531,6 +557,52 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_SlaveConfigTypeDef sSlaveConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 0;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 15;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR2;
+  if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -606,8 +678,8 @@ static void MX_GPIO_Init(void)
     // src_buffer_node1[0]=0x00000100;//SET PA8
     // src_buffer_node1[1]=0x01000000;//RESET PA8
 
-    src_buffer_node1[0]=0x00008000;
-    src_buffer_node1[1]=0x80000000;
+//    src_buffer_node1[0]=0x00008000;
+//    src_buffer_node1[1]=0x80000000;
 
     /******* DMA Configuration *********/
     __HAL_RCC_GPDMA1_CLK_ENABLE();
@@ -696,7 +768,37 @@ HAL_TIM_Base_Start(&htim2);
     }
 }
 
+void warp_invalidate(){
+  SCB_InvalidateDCache_by_Addr((uint32_t *)rx_buffer, sizeof(rx_buffer));
+}
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM5)
+    {
+        // total_16_cell_sweeps++; 
+        if (HAL_DMA_Abort(&handle_GPDMA1_Channel12) != HAL_OK)
+        {
+          Error_Handler();
+        }
+        if (HAL_DMA_Abort(&handle_GPDMA1_Channel1) != HAL_OK)
+        {
+          Error_Handler();
+        }
+        if (HAL_DMA_Abort(&handle_GPDMA1_Channel2) != HAL_OK)
+        {
+          Error_Handler();
+        }
+        //  warp_invalidate();
+        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
+        // {
+        //   Error_Handler();
+        // }
 
+        
+        /* TIM4->CNT has automatically reset to 0 in hardware! */
+        /* All 16 cell voltages in rx_data[16][3] are now updated and ready in RAM. */
+    }
+}
 /* USER CODE END 4 */
 
 /**
