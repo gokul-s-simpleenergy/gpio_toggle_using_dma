@@ -40,7 +40,9 @@ extern DMA_QListTypeDef QueueExecution0;
 extern DMA_QListTypeDef QueueEntry1;
 extern DMA_QListTypeDef QueueExit2;
 extern DMA_QListTypeDef QueueKillswitch;
-extern uint8_t src_buffer_node1[32][3];
+// extern uint8_t src_buffer_node1[3];
+extern uint32_t src_buffer_lut[32];
+extern uint32_t src_buffer_node1;
 extern SPI_HandleTypeDef hspi2;
 /* USER CODE END ET */
 
