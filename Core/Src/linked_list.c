@@ -35,8 +35,10 @@ DMA_NodeTypeDef EntryNode2;
 DMA_NodeTypeDef ExitNode2;
 DMA_QListTypeDef QueueExit2;
 DMA_NodeTypeDef ExitNode3;
-DMA_NodeTypeDef CopyNode;
-DMA_QListTypeDef QueueKillswitch;
+DMA_NodeTypeDef CopyNodeTx;
+DMA_QListTypeDef QueueTx;
+DMA_NodeTypeDef CopyNodeRx;
+DMA_QListTypeDef QueueRx;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
@@ -52,6 +54,7 @@ uint32_t src_buffer_timer3_ctrl = 0x89;
 uint32_t src_buffer_timer4_ctrl = 0x89;
 uint32_t src_buffer_timer_stop = 0x00;
 uint32_t rx_buffer;
+uint32_t rx_buffer_dump[32];
 
 /* USER CODE END PD */
 
@@ -59,6 +62,50 @@ uint32_t rx_buffer;
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
+
+/**
+  * @brief  DMA Linked-list QueueTx configuration
+  * @param  None
+  * @retval None
+  */
+HAL_StatusTypeDef MX_QueueTx_Config(void)
+{
+  HAL_StatusTypeDef ret = HAL_OK;
+  /* DMA node configuration declaration */
+  DMA_NodeConfTypeDef pNodeConfig;
+
+  /* Set node configuration ################################################*/
+  pNodeConfig.NodeType = DMA_GPDMA_LINEAR_NODE;
+  pNodeConfig.Init.Request = DMA_REQUEST_SW;
+  pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
+  pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
+  pNodeConfig.Init.SrcInc = DMA_SINC_INCREMENTED;
+  pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
+  pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
+  pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
+  pNodeConfig.Init.SrcBurstLength = 1;
+  pNodeConfig.Init.DestBurstLength = 1;
+  pNodeConfig.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
+  pNodeConfig.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
+  pNodeConfig.TriggerConfig.TriggerMode = DMA_TRIGM_SINGLE_BURST_TRANSFER ;
+  pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_RISING;
+  pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM4_TRGO;
+  pNodeConfig.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
+  pNodeConfig.DataHandlingConfig.DataAlignment = DMA_DATA_RIGHTALIGN_ZEROPADDED;
+  pNodeConfig.SrcAddress = src_buffer_lut;
+  pNodeConfig.DstAddress = (uint32_t)&src_buffer_node1;
+  pNodeConfig.DataSize = 4*32;
+
+  /* Build CopyNodeTx Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &CopyNodeTx);
+
+  /* Insert CopyNodeTx to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueTx, &CopyNodeTx);
+
+  ret |= HAL_DMAEx_List_SetCircularMode(&QueueTx);
+
+   return ret;
+}
 
 /**
   * @brief  DMA Linked-list QueueExit2 configuration
@@ -116,11 +163,11 @@ HAL_StatusTypeDef MX_QueueExit2_Config(void)
 }
 
 /**
-  * @brief  DMA Linked-list QueueKillswitch configuration
+  * @brief  DMA Linked-list QueueRx configuration
   * @param  None
   * @retval None
   */
-HAL_StatusTypeDef MX_QueueKillswitch_Config(void)
+HAL_StatusTypeDef MX_QueueRx_Config(void)
 {
   HAL_StatusTypeDef ret = HAL_OK;
   /* DMA node configuration declaration */
@@ -131,8 +178,8 @@ HAL_StatusTypeDef MX_QueueKillswitch_Config(void)
   pNodeConfig.Init.Request = DMA_REQUEST_SW;
   pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
   pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
-  pNodeConfig.Init.SrcInc = DMA_SINC_INCREMENTED;
-  pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
+  pNodeConfig.Init.SrcInc = DMA_SINC_FIXED;
+  pNodeConfig.Init.DestInc = DMA_DINC_INCREMENTED;
   pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
   pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
   pNodeConfig.Init.SrcBurstLength = 1;
@@ -144,17 +191,17 @@ HAL_StatusTypeDef MX_QueueKillswitch_Config(void)
   pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM4_TRGO;
   pNodeConfig.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
   pNodeConfig.DataHandlingConfig.DataAlignment = DMA_DATA_RIGHTALIGN_ZEROPADDED;
-  pNodeConfig.SrcAddress = src_buffer_lut;
-  pNodeConfig.DstAddress = (uint32_t)&src_buffer_node1;
+  pNodeConfig.SrcAddress = (uint32_t)&rx_buffer;
+  pNodeConfig.DstAddress = rx_buffer_dump;
   pNodeConfig.DataSize = 4*32;
 
-  /* Build CopyNode Node */
-  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &CopyNode);
+  /* Build CopyNodeRx Node */
+  ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &CopyNodeRx);
 
-  /* Insert CopyNode to Queue */
-  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueKillswitch, &CopyNode);
+  /* Insert CopyNodeRx to Queue */
+  ret |= HAL_DMAEx_List_InsertNode_Tail(&QueueRx, &CopyNodeRx);
 
-  ret |= HAL_DMAEx_List_SetCircularMode(&QueueKillswitch);
+  ret |= HAL_DMAEx_List_SetCircularMode(&QueueRx);
 
    return ret;
 }

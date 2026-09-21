@@ -45,6 +45,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 DMA_HandleTypeDef handle_GPDMA1_Channel12;
+DMA_HandleTypeDef handle_GPDMA1_Channel3;
 DMA_HandleTypeDef handle_GPDMA1_Channel2;
 DMA_HandleTypeDef handle_GPDMA1_Channel1;
 DMA_HandleTypeDef handle_GPDMA1_Channel0;
@@ -173,7 +174,8 @@ int main(void)
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
     MX_QueueExit2_Config();
-    MX_QueueKillswitch_Config();
+    MX_QueueTx_Config();
+    MX_QueueRx_Config();
 
     HAL_TIM_Base_Start_IT(&htim5);
     /******* Link the queue to the DMA channel *********/
@@ -183,7 +185,11 @@ int main(void)
         Error_Handler();
         }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueKillswitch)!=HAL_OK)
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueTx)!=HAL_OK)
+    {
+    Error_Handler();
+    }
+    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel3, &QueueRx)!=HAL_OK)
     {
     Error_Handler();
     }
@@ -232,6 +238,10 @@ int main(void)
     Error_Handler();
   }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -360,6 +370,20 @@ static void MX_GPDMA1_Init(void)
     Error_Handler();
   }
   if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel12, DMA_CHANNEL_NPRIV) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  handle_GPDMA1_Channel3.Instance = GPDMA1_Channel3;
+  handle_GPDMA1_Channel3.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
+  handle_GPDMA1_Channel3.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
+  handle_GPDMA1_Channel3.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
+  handle_GPDMA1_Channel3.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
+  handle_GPDMA1_Channel3.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel3, DMA_CHANNEL_NPRIV) != HAL_OK)
   {
     Error_Handler();
   }

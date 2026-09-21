@@ -39,7 +39,8 @@ extern "C" {
 extern DMA_QListTypeDef QueueExecution0;
 extern DMA_QListTypeDef QueueEntry1;
 extern DMA_QListTypeDef QueueExit2;
-extern DMA_QListTypeDef QueueKillswitch;
+extern DMA_QListTypeDef QueueTx;
+extern DMA_QListTypeDef QueueRx;
 // extern uint8_t src_buffer_node1[3];
 extern uint32_t src_buffer_lut[32];
 extern uint32_t src_buffer_node1;
