@@ -165,7 +165,7 @@ int main(void)
     // Global src_buffer_node1 is used
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
-    MX_QueueExit2_Config();
+    // MX_QueueExit2_Config();
     MX_QueueTx_Config();
     MX_QueueRx_Config();
 
@@ -190,10 +190,10 @@ int main(void)
     Error_Handler();
     }
 
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
-    {
-    Error_Handler();
-    }
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
+    // {
+    // Error_Handler();
+    // }
 
 
 /******* 2- Start the timer (PWM) to generate the trigger events *********/
@@ -225,10 +225,10 @@ int main(void)
   {
     Error_Handler();
   }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  // if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
   {
     Error_Handler();
@@ -250,7 +250,7 @@ int main(void)
      /* Stop TIM5 */
 __HAL_TIM_DISABLE_IT(&htim5, TIM_IT_UPDATE);   // 1. Disable TIM5 interrupt temporarily
 
-__HAL_TIM_SET_AUTORELOAD(&htim5, 5);
+__HAL_TIM_SET_AUTORELOAD(&htim5, 32);
 __HAL_TIM_SET_COUNTER(&htim5, 0);
 TIM5->EGR = TIM_EGR_UG;                        // 2. Force update event
 __HAL_TIM_CLEAR_FLAG(&htim5, TIM_FLAG_UPDATE); // 3. Clear pending flag
@@ -659,7 +659,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
   sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR3; // TIM4_TRGO (End of frame CS HIGH trigger)
+  sSlaveConfig.InputTrigger = TIM_TS_ITR3;
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -858,7 +858,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         {
           Error_Handler();
         }
-        if (HAL_DMA_Abort(&handle_GPDMA1_Channel2) != HAL_OK)
+        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel2) != HAL_OK)
+        // {
+        //   Error_Handler();
+        // }   
+        if (HAL_DMA_Abort(&handle_GPDMA1_Channel3) != HAL_OK)
+        {
+          Error_Handler();
+        }   
+        if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
         {
           Error_Handler();
         }   

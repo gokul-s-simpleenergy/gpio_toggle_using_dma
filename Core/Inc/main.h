@@ -38,7 +38,7 @@ extern "C" {
 /* USER CODE BEGIN ET */
 extern DMA_QListTypeDef QueueExecution0;
 extern DMA_QListTypeDef QueueEntry1;
-extern DMA_QListTypeDef QueueExit2;
+// extern DMA_QListTypeDef QueueExit2;
 extern DMA_QListTypeDef QueueTx;
 extern DMA_QListTypeDef QueueRx;
 // extern uint8_t src_buffer_node1[3];
