@@ -95,7 +95,7 @@ uint32_t src_buffer_lut[32] = {
     0x00C60033
 };
 
-uint32_t src_buffer_node1 =0x00030014 ; 
+uint32_t src_buffer_node1 ; 
 DMA_NodeTypeDef Node12;
 DMA_QListTypeDef Queue;
 extern DMA_QListTypeDef Queue;
@@ -103,6 +103,7 @@ uint8_t x;
 uint8_t y;
 uint16_t Pack_Current1;
 uint16_t device_id;
+uint8_t size;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -161,15 +162,6 @@ int main(void)
   MX_SPI2_Init();
   MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
-
-  // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  // HAL_TIM_Base_Start(&htim2);
-  
-    // src_buffer_node1[0]=0x00008000;
-    // src_buffer_node1[1]=0x80000000;
-    // src_buffer_node1[0] = 0xBE;
-    // src_buffer_node1[1] = 0x01;
-    // src_buffer_node1[2] = 0x9E;
     // Global src_buffer_node1 is used
     MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
@@ -254,20 +246,19 @@ int main(void)
   {
     if (x == 1)
     {
-      x = 0;
-      /* HAL_TIM_Base_Start leaves htim2.State as HAL_TIM_STATE_BUSY.
-       * Calling HAL_TIM_Base_Stop resets state back to HAL_TIM_STATE_READY
-       * so that HAL_TIM_Base_Start can trigger the next pulse successfully.
-       */
-      // HAL_TIM_Base_Stop(&htim2);
-      // HAL_TIM_Base_Start(&htim2);
-       TIM3->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
-      /* Call on command */
-      // HAL_DMAEx_List_Stop(&handle_GPDMA1_Channel1);  // Resets HAL state to READY & re-arms Head
-      // HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1); // Starts fresh from Head node
-//      HAL_TIM_Base_Start(&htim3);
+      x=0;
+     /* Stop TIM5 */
+__HAL_TIM_DISABLE_IT(&htim5, TIM_IT_UPDATE);   // 1. Disable TIM5 interrupt temporarily
+
+__HAL_TIM_SET_AUTORELOAD(&htim5, 5);
+__HAL_TIM_SET_COUNTER(&htim5, 0);
+TIM5->EGR = TIM_EGR_UG;                        // 2. Force update event
+__HAL_TIM_CLEAR_FLAG(&htim5, TIM_FLAG_UPDATE); // 3. Clear pending flag
+
+__HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);    // 4. Re-enable TIM5 interrupt
+  TIM3->CR1 |= TIM_CR1_CEN;
     }
-    else if(x ==2){
+    else if(x ==7){
     	x=0;
       TIM4->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
     }
@@ -870,14 +861,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if (HAL_DMA_Abort(&handle_GPDMA1_Channel2) != HAL_OK)
         {
           Error_Handler();
-        }
-        //  warp_invalidate();
-        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
-        // {
-        //   Error_Handler();
-        // }
-
-        
+        }   
         /* TIM4->CNT has automatically reset to 0 in hardware! */
         /* All 16 cell voltages in rx_data[16][3] are now updated and ready in RAM. */
     }
