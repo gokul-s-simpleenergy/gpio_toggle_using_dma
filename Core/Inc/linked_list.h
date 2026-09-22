@@ -33,7 +33,6 @@
 /* Exported constants --------------------------------------------------------*/
 HAL_StatusTypeDef MX_QueueTx_Config(void);
 HAL_StatusTypeDef MX_QueueRx_Config(void);
-HAL_StatusTypeDef MX_QueueExecution0_Config(void);
 HAL_StatusTypeDef MX_QueueEntry1_Config(void);
 
 #ifdef __cplusplus

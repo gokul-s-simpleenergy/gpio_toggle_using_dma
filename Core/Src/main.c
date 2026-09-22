@@ -163,7 +163,7 @@ int main(void)
   MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
     // Global src_buffer_node1 is used
-    MX_QueueExecution0_Config();
+    // MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
     // MX_QueueExit2_Config();
     MX_QueueTx_Config();
@@ -185,10 +185,10 @@ int main(void)
     {
     Error_Handler();
     }
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel12, &QueueExecution0)!=HAL_OK)
-    {
-    Error_Handler();
-    }
+    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel12, &QueueExecution0)!=HAL_OK)
+    // {
+    // Error_Handler();
+    // }
 
     // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
     // {
@@ -217,10 +217,10 @@ int main(void)
   SET_BIT(SPI2->CFG1, SPI_CFG1_RXDMAEN); /* Enable SPI2 RX DMA Requests */
   SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  // if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
   {
     Error_Handler();
@@ -263,10 +263,10 @@ __HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);    // 4. Re-enable TIM5 interrupt
       TIM4->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
     }
     if(y==1){
-        if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
-  {
-    Error_Handler();
-  }
+  //       if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
+  // {
+  //   Error_Handler();
+  // }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
   {
     Error_Handler();
@@ -850,10 +850,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (htim->Instance == TIM5)
     {
         // total_16_cell_sweeps++; 
-        if (HAL_DMA_Abort(&handle_GPDMA1_Channel12) != HAL_OK)
-        {
-          Error_Handler();
-        }
+        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel12) != HAL_OK)
+        // {
+        //   Error_Handler();
+        // }
         if (HAL_DMA_Abort(&handle_GPDMA1_Channel1) != HAL_OK)
         {
           Error_Handler();
