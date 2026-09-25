@@ -56,6 +56,7 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim5;
+TIM_HandleTypeDef htim15;
 
 /* USER CODE BEGIN PV */
 // uint8_t src_buffer_node1[4][3] = {{0x14, 0x00, 0x03}, {0x15, 0x00, 0x16}, {0x16, 0x00, 0x29}, {0x14, 0x00, 0x03}};
@@ -115,6 +116,7 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_TIM5_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 void frame_stream_with_trigger();
 
@@ -161,11 +163,9 @@ int main(void)
   MX_TIM4_Init();
   MX_SPI2_Init();
   MX_TIM5_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
-    // Global src_buffer_node1 is used
-    // MX_QueueExecution0_Config();
     MX_QueueEntry1_Config();
-    // MX_QueueExit2_Config();
     MX_QueueTx_Config();
     MX_QueueRx_Config();
 
@@ -173,10 +173,9 @@ int main(void)
     /******* Link the queue to the DMA channel *********/
 
     if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel1, &QueueEntry1)!=HAL_OK)
-        {
-        Error_Handler();
-        }
-
+    {
+    Error_Handler();
+    }
     if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &QueueTx)!=HAL_OK)
     {
     Error_Handler();
@@ -185,29 +184,6 @@ int main(void)
     {
     Error_Handler();
     }
-    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel12, &QueueExecution0)!=HAL_OK)
-    // {
-    // Error_Handler();
-    // }
-
-    // if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel2, &QueueExit2)!=HAL_OK)
-    // {
-    // Error_Handler();
-    // }
-
-
-/******* 2- Start the timer (PWM) to generate the trigger events *********/
-// HAL_TIM_Base_Start(&htim2);
-
-
-
-    /******* Start the DMA transfer *********/
-    // Toggle PB10 as a marker for oscilloscope/debug
-    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
-    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
-
-    // Start the DMA: will generate a pulse (SET then RESET) on PA8
-    // synchronized with each rising edge of TIM2_TRGO
 
   // Continuous Register SPI Transfer Preparation
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);   // 1. Drive CS HIGH (Idle)
@@ -217,18 +193,10 @@ int main(void)
   SET_BIT(SPI2->CFG1, SPI_CFG1_RXDMAEN); /* Enable SPI2 RX DMA Requests */
   SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
-  // if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
-  // {
-  //   Error_Handler();
-  // }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
   {
     Error_Handler();
   }
-  // if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
-  // {
-  //   Error_Handler();
-  // }
   if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
   {
     Error_Handler();
@@ -237,6 +205,7 @@ int main(void)
   {
     Error_Handler();
   }
+  HAL_TIM_Base_Start(&htim15);
 
   /* USER CODE END 2 */
 
@@ -263,21 +232,48 @@ __HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);    // 4. Re-enable TIM5 interrupt
       TIM4->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
     }
     if(y==1){
-  //       if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel12) != HAL_OK)
-  // {
-  //   Error_Handler();
-  // }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  TIM3->CR1 |= TIM_CR1_CEN; // Just set the enable bit!
 
-  HAL_Delay(10);
+       y = 0; // Clear flag so it only runs once per trigger
+    /* 1. Check if hardware finished (EN bit is cleared) and reset HAL state */
+       /* Tell HAL the channels are ready to be started again */
+ /* 2. Fully UNLOCK and reset Channel 0 */
+
+      uint32_t new_datasize = 4 * size; // Example: change to 16 words (64 bytes)
+       CopyNodeTx.LinkRegisters[2] = new_datasize;
+       CopyNodeRx.LinkRegisters[2] = new_datasize;
+
+       __HAL_UNLOCK(&handle_GPDMA1_Channel0);
+      //  handle_GPDMA1_Channel0.Instance->CCR |= DMA_CCR_RESET; // Reset hardware FIFO/state
+       handle_GPDMA1_Channel0.State = HAL_DMA_STATE_READY;
+       handle_GPDMA1_Channel0.ErrorCode = HAL_DMA_ERROR_NONE;
+       handle_GPDMA1_Channel0.LinkedListQueue->State = HAL_DMA_QUEUE_STATE_READY;
+       /* 3. Fully UNLOCK and reset Channel 3 */
+       __HAL_UNLOCK(&handle_GPDMA1_Channel3);
+      //  handle_GPDMA1_Channel3.Instance->CCR |= DMA_CCR_RESET; // Reset hardware FIFO/state
+       handle_GPDMA1_Channel3.State = HAL_DMA_STATE_READY;
+       handle_GPDMA1_Channel3.ErrorCode = HAL_DMA_ERROR_NONE;
+       handle_GPDMA1_Channel3.LinkedListQueue->State = HAL_DMA_QUEUE_STATE_READY;
+      
+//
+//  if (HAL_DMA_Abort(&handle_GPDMA1_Channel3) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+//  if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
+//  {
+//    Error_Handler();
+//  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  HAL_TIM_Base_Start(&htim15);
+
+  // HAL_Delay(2000);
     }
 
     /* USER CODE END WHILE */
@@ -369,7 +365,7 @@ static void MX_GPDMA1_Init(void)
   handle_GPDMA1_Channel3.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
   handle_GPDMA1_Channel3.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
   handle_GPDMA1_Channel3.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
-  handle_GPDMA1_Channel3.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  handle_GPDMA1_Channel3.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_NORMAL;
   if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel3) != HAL_OK)
   {
     Error_Handler();
@@ -411,7 +407,7 @@ static void MX_GPDMA1_Init(void)
   handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
   handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
   handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_EACH_LL_ITEM_TRANSFER;
-  handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;
+  handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_NORMAL;
   if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel0) != HAL_OK)
   {
     Error_Handler();
@@ -677,6 +673,52 @@ static void MX_TIM5_Init(void)
 }
 
 /**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 3;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 149;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -729,149 +771,11 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-/* IMPORTANT: Remove or exclude linkedlist.c/h (CubeMX generated)
- * to avoid conflicts with this GPDMA configuration.
- */
- void frame_stream_with_trigger()
-{
-    /**
-     * This function generates a continuous stream of pulses on PA8,
-     * but now the DMA transfer is **synchronized to a hardware trigger** (TIM2 PWM).
-     *
-     * Compared to previous examples:
-     * - The DMA is still in circular mode, so the pulse sequence repeats.
-     * - The node is configured to wait for a **hardware trigger** (TIM2_TRGO, rising edge) before each transfer.
-     * - This means each pulse (SET then RESET) is generated in sync with the timer, not as fast as possible.
-     * - Useful for generating precise, timer-controlled pulse trains.
-     */
-
-    /******* Variables: Prepare the pulse sequence *********/
-    // The buffer contains two values:
-    // - First value: SET PA8 (0x00000100)
-    // - Second value: RESET PA8 (0x01000000)
-    // src_buffer_node1[0]=0x00000100;//SET PA8
-    // src_buffer_node1[1]=0x01000000;//RESET PA8
-
-//    src_buffer_node1[0]=0x00008000;
-//    src_buffer_node1[1]=0x80000000;
-
-    /******* DMA Configuration *********/
-    __HAL_RCC_GPDMA1_CLK_ENABLE();
-
-    handle_GPDMA1_Channel0.Instance = GPDMA1_Channel0;
-    handle_GPDMA1_Channel0.InitLinkedList.Priority = DMA_LOW_PRIORITY_LOW_WEIGHT;
-    handle_GPDMA1_Channel0.InitLinkedList.LinkStepMode = DMA_LSM_FULL_EXECUTION;
-    handle_GPDMA1_Channel0.InitLinkedList.LinkAllocatedPort = DMA_LINK_ALLOCATED_PORT0;
-    handle_GPDMA1_Channel0.InitLinkedList.TransferEventMode = DMA_TCEM_LAST_LL_ITEM_TRANSFER;
-
-    // *** Circular mode: the sequence will repeat automatically ***
-    handle_GPDMA1_Channel0.InitLinkedList.LinkedListMode = DMA_LINKEDLIST_CIRCULAR;//normal mode instead of circular mode
-    if (HAL_DMAEx_List_Init(&handle_GPDMA1_Channel0) != HAL_OK)
-    {
-    Error_Handler();
-    }
-    if (HAL_DMA_ConfigChannelAttributes(&handle_GPDMA1_Channel0, DMA_CHANNEL_NPRIV) != HAL_OK)
-    {
-    Error_Handler();
-    }
-
-    /******* Node Configuration:Describe the triggered pulse sequence *********/
-    HAL_StatusTypeDef ret = HAL_OK;
-    DMA_NodeConfTypeDef pNodeConfig;
-
-    pNodeConfig.NodeType = DMA_GPDMA_LINEAR_NODE;
-    pNodeConfig.Init.Request = DMA_REQUEST_SW;
-    pNodeConfig.Init.BlkHWRequest = DMA_BREQ_SINGLE_BURST;
-    pNodeConfig.Init.Direction = DMA_MEMORY_TO_MEMORY;
-    pNodeConfig.Init.SrcInc = DMA_SINC_INCREMENTED;
-    pNodeConfig.Init.DestInc = DMA_DINC_FIXED;
-    pNodeConfig.Init.SrcDataWidth = DMA_SRC_DATAWIDTH_WORD;
-    pNodeConfig.Init.DestDataWidth = DMA_DEST_DATAWIDTH_WORD;
-    pNodeConfig.Init.SrcBurstLength = 1;
-    pNodeConfig.Init.DestBurstLength = 1;
-    pNodeConfig.Init.TransferAllocatedPort = DMA_SRC_ALLOCATED_PORT0|DMA_DEST_ALLOCATED_PORT0;
-    pNodeConfig.Init.TransferEventMode = DMA_TCEM_BLOCK_TRANSFER;
-    pNodeConfig.Init.Mode = DMA_NORMAL;
-    /*	pNodeConfig.RepeatBlockConfig.RepeatCount = 1;
-    pNodeConfig.RepeatBlockConfig.SrcAddrOffset = 0;
-    pNodeConfig.RepeatBlockConfig.DestAddrOffset = 0;
-    pNodeConfig.RepeatBlockConfig.BlkSrcAddrOffset = 0;
-    pNodeConfig.RepeatBlockConfig.BlkDestAddrOffset = 0;*/
-
-/****** 1- Trigger Configuration: synchronize with timer ******/
-pNodeConfig.TriggerConfig.TriggerMode = DMA_TRIGM_SINGLE_BURST_TRANSFER ;// Wait for trigger for each burst
-pNodeConfig.TriggerConfig.TriggerPolarity = DMA_TRIG_POLARITY_RISING;// On rising edge
-pNodeConfig.TriggerConfig.TriggerSelection = GPDMA1_TRIGGER_TIM2_TRGO;// Use TIM2 TRGO as trigger
-
-    pNodeConfig.DataHandlingConfig.DataExchange = DMA_EXCHANGE_NONE;
-    pNodeConfig.DataHandlingConfig.DataAlignment = DMA_DATA_RIGHTALIGN_ZEROPADDED;
-    pNodeConfig.SrcAddress = (uint32_t)src_buffer_node1;
-    pNodeConfig.DstAddress = (uint32_t)&GPIOA->BSRR; // Will SET then RESET PA8
-    pNodeConfig.DataSize = 2*4U; //// 2 words: SET and RESET
-
-    // Build and insert the node into the queue
-    ret |= HAL_DMAEx_List_BuildNode(&pNodeConfig, &Node12);
-    ret |= HAL_DMAEx_List_InsertNode_Tail(&Queue, &Node12);
-
-    // Set the queue to circular mode so it loops forever
-    ret |= HAL_DMAEx_List_SetCircularMode(&Queue);
-
-
-    /******* Link the queue to the DMA channel *********/
-    if(HAL_DMAEx_List_LinkQ(&handle_GPDMA1_Channel0, &Queue)!=HAL_OK)
-    {
-    Error_Handler();
-    }
-
-
-/******* 2- Start the timer (PWM) to generate the trigger events *********/
-HAL_TIM_Base_Start(&htim2);
-
-
-
-    /******* Start the DMA transfer *********/
-    // Toggle PB10 as a marker for oscilloscope/debug
-    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, SET);
-    // HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, RESET);
-
-    // Start the DMA: will generate a pulse (SET then RESET) on PA8
-    // synchronized with each rising edge of TIM2_TRGO
-    if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0)!=0)//--->SET PA8
-    {
-    Error_Handler();
-    }
-}
-
-void warp_invalidate(){
-//  SCB_InvalidateDCache_by_Addr((uint32_t *)rx_buffer, sizeof(rx_buffer));
-}
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM5)
     {
-        // total_16_cell_sweeps++; 
-        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel12) != HAL_OK)
-        // {
-        //   Error_Handler();
-        // }
-        if (HAL_DMA_Abort(&handle_GPDMA1_Channel1) != HAL_OK)
-        {
-          Error_Handler();
-        }
-        // if (HAL_DMA_Abort(&handle_GPDMA1_Channel2) != HAL_OK)
-        // {
-        //   Error_Handler();
-        // }   
-        if (HAL_DMA_Abort(&handle_GPDMA1_Channel3) != HAL_OK)
-        {
-          Error_Handler();
-        }   
-        if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
-        {
-          Error_Handler();
-        }   
-        /* TIM4->CNT has automatically reset to 0 in hardware! */
-        /* All 16 cell voltages in rx_data[16][3] are now updated and ready in RAM. */
+        HAL_TIM_Base_Stop(&htim15);
     }
 }
 /* USER CODE END 4 */

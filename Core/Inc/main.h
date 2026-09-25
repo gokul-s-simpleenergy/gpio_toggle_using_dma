@@ -42,6 +42,9 @@ extern DMA_QListTypeDef QueueEntry1;
 extern DMA_QListTypeDef QueueTx;
 extern DMA_QListTypeDef QueueRx;
 // extern uint8_t src_buffer_node1[3];
+
+extern DMA_NodeTypeDef CopyNodeRx;
+extern DMA_NodeTypeDef CopyNodeTx;
 extern uint32_t src_buffer_lut[32];
 extern uint32_t src_buffer_node1;
 extern SPI_HandleTypeDef hspi2;
