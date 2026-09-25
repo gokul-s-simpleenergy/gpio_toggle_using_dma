@@ -118,7 +118,7 @@ static void MX_SPI2_Init(void);
 static void MX_TIM5_Init(void);
 static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
-void frame_stream_with_trigger();
+void DMA_Callback(DMA_HandleTypeDef *hdma);
 
 
 /* USER CODE END PFP */
@@ -158,11 +158,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_GPDMA1_Init();
-  MX_TIM2_Init();
-  MX_TIM3_Init();
-  MX_TIM4_Init();
   MX_SPI2_Init();
-  MX_TIM5_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
     MX_QueueEntry1_Config();
@@ -193,18 +189,20 @@ int main(void)
   SET_BIT(SPI2->CFG1, SPI_CFG1_RXDMAEN); /* Enable SPI2 RX DMA Requests */
   SET_BIT(SPI2->CR1, SPI_CR1_CSTART);                    // 4. Start Master Transfer
 
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel1) != HAL_OK)
+  if (HAL_DMAEx_List_Start_IT(&handle_GPDMA1_Channel1) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
+  if (HAL_DMAEx_List_Start_IT(&handle_GPDMA1_Channel0) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel3) != HAL_OK)
+  if (HAL_DMAEx_List_Start_IT(&handle_GPDMA1_Channel3) != HAL_OK)
   {
     Error_Handler();
   }
+  handle_GPDMA1_Channel3.XferCpltCallback = DMA_Callback;
+  __HAL_DMA_ENABLE_IT(&handle_GPDMA1_Channel3, DMA_IT_TC);
   HAL_TIM_Base_Start(&htim15);
 
   /* USER CODE END 2 */
@@ -216,15 +214,6 @@ int main(void)
     if (x == 1)
     {
       x=0;
-     /* Stop TIM5 */
-__HAL_TIM_DISABLE_IT(&htim5, TIM_IT_UPDATE);   // 1. Disable TIM5 interrupt temporarily
-
-__HAL_TIM_SET_AUTORELOAD(&htim5, 32);
-__HAL_TIM_SET_COUNTER(&htim5, 0);
-TIM5->EGR = TIM_EGR_UG;                        // 2. Force update event
-__HAL_TIM_CLEAR_FLAG(&htim5, TIM_FLAG_UPDATE); // 3. Clear pending flag
-
-__HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);    // 4. Re-enable TIM5 interrupt
   TIM3->CR1 |= TIM_CR1_CEN;
     }
     else if(x ==7){
@@ -253,27 +242,17 @@ __HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);    // 4. Re-enable TIM5 interrupt
        handle_GPDMA1_Channel3.State = HAL_DMA_STATE_READY;
        handle_GPDMA1_Channel3.ErrorCode = HAL_DMA_ERROR_NONE;
        handle_GPDMA1_Channel3.LinkedListQueue->State = HAL_DMA_QUEUE_STATE_READY;
-      
-//
-//  if (HAL_DMA_Abort(&handle_GPDMA1_Channel3) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
-//  if (HAL_DMA_Abort(&handle_GPDMA1_Channel0) != HAL_OK)
-//  {
-//    Error_Handler();
-//  }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_DMAEx_List_Start(&handle_GPDMA1_Channel0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  HAL_TIM_Base_Start(&htim15);
 
-  // HAL_Delay(2000);
+      if (HAL_DMAEx_List_Start_IT(&handle_GPDMA1_Channel3) != HAL_OK)
+      {
+        Error_Handler();
+      }
+      __HAL_DMA_ENABLE_IT(&handle_GPDMA1_Channel3, DMA_IT_TC);
+      if (HAL_DMAEx_List_Start_IT(&handle_GPDMA1_Channel0) != HAL_OK)
+      {
+        Error_Handler();
+      }
+      HAL_TIM_Base_Start(&htim15);
     }
 
     /* USER CODE END WHILE */
@@ -342,6 +321,14 @@ static void MX_GPDMA1_Init(void)
 
   /* Peripheral clock enable */
   __HAL_RCC_GPDMA1_CLK_ENABLE();
+
+  /* GPDMA1 interrupt Init */
+    HAL_NVIC_SetPriority(GPDMA1_Channel0_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel0_IRQn);
+    HAL_NVIC_SetPriority(GPDMA1_Channel1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel1_IRQn);
+    HAL_NVIC_SetPriority(GPDMA1_Channel3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(GPDMA1_Channel3_IRQn);
 
   /* USER CODE BEGIN GPDMA1_Init 1 */
 
@@ -655,7 +642,7 @@ static void MX_TIM5_Init(void)
     Error_Handler();
   }
   sSlaveConfig.SlaveMode = TIM_SLAVEMODE_EXTERNAL1;
-  sSlaveConfig.InputTrigger = TIM_TS_ITR3;
+  sSlaveConfig.InputTrigger = TIM_TS_ITR6;
   if (HAL_TIM_SlaveConfigSynchro(&htim5, &sSlaveConfig) != HAL_OK)
   {
     Error_Handler();
@@ -693,7 +680,7 @@ static void MX_TIM15_Init(void)
   htim15.Instance = TIM15;
   htim15.Init.Prescaler = 3;
   htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim15.Init.Period = 149;
+  htim15.Init.Period = 199;
   htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim15.Init.RepetitionCounter = 0;
   htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -771,12 +758,9 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM5)
-    {
-        HAL_TIM_Base_Stop(&htim15);
-    }
+
+void DMA_Callback(DMA_HandleTypeDef *hdma){
+  HAL_TIM_Base_Stop(&htim15);
 }
 /* USER CODE END 4 */
 

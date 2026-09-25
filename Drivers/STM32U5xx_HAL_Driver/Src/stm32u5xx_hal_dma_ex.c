@@ -912,7 +912,7 @@ HAL_StatusTypeDef HAL_DMAEx_List_Start_IT(DMA_HandleTypeDef *const hdma)
       hdma->LinkedListQueue->ErrorCode = HAL_DMA_QUEUE_ERROR_NONE;
 
       /* Enable common interrupts: Transfer Complete and Transfer Errors ITs */
-      __HAL_DMA_ENABLE_IT(hdma, (DMA_IT_TC | DMA_IT_DTE | DMA_IT_ULE | DMA_IT_USE | DMA_IT_TO));
+      __HAL_DMA_ENABLE_IT(hdma, ( DMA_IT_DTE | DMA_IT_ULE | DMA_IT_USE | DMA_IT_TO));
 
       /* Check half transfer complete callback */
       if (hdma->XferHalfCpltCallback != NULL)
